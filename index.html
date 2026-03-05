@@ -137,9 +137,35 @@
             btn.disabled = false;
         }
     }
+async function checkStock(playerName, rowIndex) {
+    const stockId = document.getElementById(`${playerName}-stock-${rowIndex}`).value;
+    const priceInput = document.getElementById(`${playerName}-price-${rowIndex}`);
+    const nameDisplay = document.getElementById(`${playerName}-stock-${rowIndex}`); // 直接改寫輸入框內容
 
+    if (stockId.length >= 4) {
+        try {
+            // 呼叫 GAS 獲取即時資訊
+            const response = await fetch(`${GAS_URL}?action=query&stock=${stockId}`);
+            const data = await response.json();
+            
+            if (data.status === "success") {
+                // 3.1 條款：以「代號+股名」呈現
+                nameDisplay.value = `${stockId} ${data.name}`; 
+                // 將收盤價填入價格輸入框
+                priceInput.value = data.close; 
+                alert(`抓取成功！${data.name} 參考收盤價：${data.close}`);
+            }
+        } catch (e) {
+            console.error("無法抓取股價", e);
+        }
+    }
+}
+
+// 修改 HTML 產生器，讓 input 標籤在「失去焦點(onblur)」時自動觸發檢查
+// 找到原本產生 input 的地方，加上 onblur="checkStock('${name}', ${i})"
     window.onload = init;
 </script>
 </body>
 
 </html>
+
