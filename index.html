@@ -2,170 +2,87 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>股神爭霸戰 - 鍵盤賭神</title>
+    <title>股神爭霸戰</title>
     <style>
-        :root { --primary: #2c3e50; --gold: #f1c40f; --accent: #e67e22; }
-        body { font-family: "Microsoft JhengHei", sans-serif; background: #f4f7f6; padding: 20px; color: #333; }
-        header { text-align: center; background: var(--primary); color: white; padding: 15px; border-radius: 10px; margin-bottom: 25px; }
+        :root { --primary: #2c3e50; --gold: #f1c40f; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: #f4f7f6; padding: 20px; }
         .player-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; border-top: 6px solid var(--gold); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .player-name { font-size: 1.4em; font-weight: bold; color: var(--primary); margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
-        th { background: #f8f9fa; color: #666; font-weight: 600; padding: 10px; border: 1px solid #dee2e6; }
-        td { border: 1px solid #dee2e6; padding: 8px; text-align: center; }
-        input, select { width: 90%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-        input:focus { border-color: var(--accent); outline: none; }
-        .disabled { background: #e9ecef !important; cursor: not-allowed; color: #adb5bd; }
-        .btn-order { background: var(--accent); color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.3s; }
-        .btn-order:hover { background: #d35400; transform: translateY(-1px); }
-        .footer-info { margin-top: 30px; text-align: center; font-size: 0.9em; color: #666; background: #fff; padding: 15px; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        input { width: 90%; padding: 5px; }
+        .btn-order { background: #e67e22; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 5px; }
+        .loading { color: #888; font-size: 0.8em; }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>股神爭霸戰</h1>
-    <p>人人都是鍵盤賭神</p>
-</header>
+<h1 style="text-align:center;">股神爭霸戰 - 鍵盤賭神</h1>
 
-<div id="players-container">
-    </div>
-
-<div class="footer-info" id="status-bar">
-    <div id="countdown">正在計算剩餘比賽天數...</div>
-    <div id="market-time" style="margin-top: 5px; font-weight: bold;"></div>
-</div>
+<div id="players-container"></div>
 
 <script>
-    // 你的 Google Apps Script 部署網址
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxWow-_Fixgv929CVxpGqEVsSkqGon_-rLuFZZVyWS0I3vAI_4EkhW6LbuZuoaxpW9d/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxVd1iOT5bm8w9k3d75RxlCxnZUt32_LLOG_Kw8APO6ohXWCRWkK0Mqc4mM9XxoRvE-/exec";
     const players = ["金華", "麗娟", "欣梅", "彩蜂", "譚爸"];
-    const deadline = new Date("2026-06-30");
 
     function init() {
         const container = document.getElementById('players-container');
         const now = new Date();
         const hour = now.getHours();
         const min = now.getMinutes();
-        
-        // 3.1 條款：00:00~13:30 期間不能輸入
+        // 3.1 條款：13:30 鎖定 (測試時可暫時註解下行)
         const isLocked = (hour < 13 || (hour === 13 && min <= 30));
-        document.getElementById('market-time').innerText = isLocked ? "⚠️ 目前為盤中時間：系統鎖定中 (13:30後開放)" : "✅ 目前為盤後時間：可以進行委託下單";
-        document.getElementById('market-time').style.color = isLocked ? "#e74c3c" : "#27ae60";
 
         players.forEach(name => {
-            let html = `
-                <div class="player-card">
-                    <div class="player-name">${name}</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>投資標的 (代號)</th>
-                                <th>買/賣</th>
-                                <th>委託價格</th>
-                                <th>委託股數</th>
-                                <th>執行</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
+            let html = `<div class="player-card"><h3>${name}</h3><table>
+                <tr><th>代號</th><th>型態</th><th>委託價</th><th>股數</th><th>操作</th></tr>`;
             for(let i=1; i<=3; i++) {
-                html += `
-                    <tr>
-                        <td><input type="text" id="${name}-stock-${i}" class="${isLocked ? 'disabled' : ''}" ${isLocked ? 'disabled' : ''} placeholder="例如: 2330"></td>
-                        <td>
-                            <select id="${name}-side-${i}" ${isLocked ? 'disabled' : ''}>
-                                <option value="買進">買進</option>
-                                <option value="賣出">賣出</option>
-                            </select>
-                        </td>
-                        <td><input type="number" id="${name}-price-${i}" step="0.01" ${isLocked ? 'disabled' : ''} placeholder="輸入價格"></td>
-                        <td><input type="number" id="${name}-qty-${i}" ${isLocked ? 'disabled' : ''} placeholder="輸入股數"></td>
-                        <td><button class="btn-order" onclick="submitOrder('${name}', ${i})" ${isLocked ? 'disabled' : ''}>送出委託</button></td>
-                    </tr>
-                `;
+                html += `<tr>
+                    <td><input type="text" id="${name}-s-${i}" onblur="fetchPrice('${name}', ${i})" placeholder="輸入代號" ${isLocked ? 'disabled' : ''}></td>
+                    <td><select id="${name}-t-${i}"><option>買進</option><option>賣出</option></select></td>
+                    <td><input type="number" id="${name}-p-${i}" step="0.01"></td>
+                    <td><input type="number" id="${name}-q-${i}"></td>
+                    <td><button class="btn-order" onclick="doOrder('${name}', ${i})">下單</button></td>
+                </tr>`;
             }
-            html += `</tbody></table></div>`;
+            html += `</table></div>`;
             container.innerHTML += html;
         });
-
-        // 計算剩餘工作天 (簡單排除週末)
-        let workingDays = 0;
-        let tempDate = new Date();
-        while (tempDate < deadline) {
-            const day = tempDate.getDay();
-            if (day !== 0 && day !== 6) workingDays++;
-            tempDate.setDate(tempDate.getDate() + 1);
-        }
-        document.getElementById('countdown').innerText = `距離 2026/06/30 比賽結束，剩餘約 ${workingDays} 個工作天`;
     }
 
-    async function submitOrder(playerName, rowIndex) {
-        const stock = document.getElementById(`${playerName}-stock-${rowIndex}`).value;
-        const side = document.getElementById(`${playerName}-side-${rowIndex}`).value;
-        const price = document.getElementById(`${playerName}-price-${rowIndex}`).value;
-        const qty = document.getElementById(`${playerName}-qty-${rowIndex}`).value;
+    async function fetchPrice(name, idx) {
+        const id = document.getElementById(`${name}-s-${idx}`).value;
+        if(id.length < 4) return;
+        const pField = document.getElementById(`${name}-p-${idx}`);
+        pField.placeholder = "載入中...";
+        try {
+            const r = await fetch(`${GAS_URL}?action=query&stock=${id}`);
+            const d = await r.json();
+            if(d.close > 0) pField.value = d.close;
+        } catch(e) { console.error(e); }
+    }
 
-        if (!stock || !price || !qty) {
-            alert("請完整填寫代號、價格與股數！");
-            return;
-        }
-
-        const btn = event.target;
-        btn.innerText = "傳送中...";
-        btn.disabled = true;
+    async function doOrder(name, idx) {
+        const data = {
+            name: name,
+            stock: document.getElementById(`${name}-s-${idx}`).value,
+            side: document.getElementById(`${name}-t-${idx}`).value,
+            price: parseFloat(document.getElementById(`${name}-p-${idx}`).value),
+            qty: parseInt(document.getElementById(`${name}-q-${idx}`).value)
+        };
+        if(!data.stock || !data.price) return alert("請填寫完整");
 
         try {
-            // 使用 no-cors 模式發送，或處理跨域
-            const response = await fetch(GAS_URL, {
+            const resp = await fetch(GAS_URL, {
                 method: "POST",
-                mode: "no-cors", 
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: playerName,
-                    stock: stock,
-                    side: side,
-                    price: parseFloat(price),
-                    qty: parseInt(qty)
-                })
+                mode: "no-cors",
+                body: JSON.stringify(data)
             });
-
-            alert("委託指令已送出！請至 Google 試算表 'Pending' 分頁確認。");
-        } catch (error) {
-            alert("連線發生錯誤：" + error);
-        } finally {
-            btn.innerText = "送出委託";
-            btn.disabled = false;
-        }
+            alert("委託已送出！若符合 10% 限制，資料將出現在試算表 Pending 分頁。");
+        } catch(e) { alert("送出失敗"); }
     }
-async function checkStock(playerName, rowIndex) {
-    const stockId = document.getElementById(`${playerName}-stock-${rowIndex}`).value;
-    const priceInput = document.getElementById(`${playerName}-price-${rowIndex}`);
-    const nameDisplay = document.getElementById(`${playerName}-stock-${rowIndex}`); // 直接改寫輸入框內容
 
-    if (stockId.length >= 4) {
-        try {
-            // 呼叫 GAS 獲取即時資訊
-            const response = await fetch(`${GAS_URL}?action=query&stock=${stockId}`);
-            const data = await response.json();
-            
-            if (data.status === "success") {
-                // 3.1 條款：以「代號+股名」呈現
-                nameDisplay.value = `${stockId} ${data.name}`; 
-                // 將收盤價填入價格輸入框
-                priceInput.value = data.close; 
-                alert(`抓取成功！${data.name} 參考收盤價：${data.close}`);
-            }
-        } catch (e) {
-            console.error("無法抓取股價", e);
-        }
-    }
-}
-
-// 修改 HTML 產生器，讓 input 標籤在「失去焦點(onblur)」時自動觸發檢查
-// 找到原本產生 input 的地方，加上 onblur="checkStock('${name}', ${i})"
     window.onload = init;
 </script>
 </body>
-
 </html>
 
